@@ -1,0 +1,142 @@
+local Notifications = Instance.new("ScreenGui")
+ 
+ 
+Notifications.Name = "Notifications"
+Notifications.Parent = game.CoreGui
+Notifications.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ 
+ 
+ 
+function notify(msg, color)
+    local Notif = Instance.new("TextLabel")
+ 
+    Notif.Name = "Notif"
+    Notif.Parent = Notifications
+    Notif.AnchorPoint = Vector2.new(0.5,0.5)
+    Notif.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Notif.BackgroundTransparency = 1.000
+    Notif.Position = UDim2.new(0.5, 0,0.911, 0)
+    Notif.Size = UDim2.new(1, 0,0.037, 0)
+    Notif.Font = Enum.Font.GothamBlack
+    Notif.Text = msg 
+    Notif.TextColor3 = color or Color3.fromRGB(255, 62, 62)
+    Notif.TextScaled = true
+    Notif.TextSize = 14.000
+    Notif.TextWrapped = true
+ 
+    Notif:TweenPosition(UDim2.new(Notif.Position.X.Scale, 0 , Notif.Position.Y.Scale - 0.1), "Out", "Quad", .25, true)
+    task.wait(.5)
+    Notif:TweenSize(UDim2.new(Notif.Size.X.Scale * 1.6, 0 , Notif.Size.Y.Scale * 1.6), "Out", "Quad", 1, true)
+    game.TweenService:Create(Notif, TweenInfo.new(1), {TextTransparency = 1}):Play()
+    task.wait(2.25)
+    Notif:Remove()
+end
+ 
+local Player = game.Players.LocalPlayer
+local Character = Player.Character
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+ 
+local PathfindingService = game:GetService("PathfindingService")
+ 
+ 
+local RunService = game:GetService("RunService")
+ 
+local Ragdoll = game:GetObjects("rbxassetid://13097004225")[1]
+local RagRoot = Ragdoll:WaitForChild("HumanoidRootPart")
+local RagHumanoid = Ragdoll:FindFirstChildOfClass("Humanoid")
+RagHumanoid.WalkSpeed = 10
+Ragdoll.Parent = workspace 
+Ragdoll:PivotTo(HumanoidRootPart.CFrame * CFrame.new(0,0,14))
+ 
+local Walking = Instance.new("BoolValue")
+Walking.Value = false
+ 
+ 
+local RunAnimation = Ragdoll:WaitForChild("Animations"):FindFirstChild("Run")
+local ScanAnimation = Ragdoll:WaitForChild("Animations"):FindFirstChild("Scan")
+local PonderAnimation = Ragdoll:WaitForChild("Animations"):FindFirstChild("Ponder")
+ 
+local leftFootStep = Ragdoll:WaitForChild("LeftFoot").Footstep
+local RightFootStep = Ragdoll:WaitForChild("RightFoot").Footstep
+ 
+local track1 = RagHumanoid:LoadAnimation(RunAnimation)
+local track1_2 = RagHumanoid:LoadAnimation(ScanAnimation)
+local track2_0 = RagHumanoid:LoadAnimation(PonderAnimation)
+track2_0.Looped = true
+local Respawning = Instance.new("BoolValue")
+Respawning.Value = false
+ 
+ 
+Respawning:GetPropertyChangedSignal("Value"):Connect(function ()
+    if Respawning.Value then
+        notify("Figure已离开范围, 生成中")
+        task.wait(.1)
+        Ragdoll:PivotTo(HumanoidRootPart.CFrame * CFrame.new(0,0,14))
+        notify("成功", Color3.fromRGB(0, 255, 115))
+ 
+    else
+ 
+    end
+end)
+ 
+Walking:GetPropertyChangedSignal("Value"):Connect(function ()
+    if Walking.Value then
+        track1:Play(0.5)
+        track1_2:Play(0.5)
+        track2_0:Stop(0.5)
+    else
+        track1:Stop(0.5)
+        track1_2:Stop(0.5)
+        track2_0:Play(0.3)
+    end
+end)
+ 
+track1:GetMarkerReachedSignal("Footstep"):Connect(function(parameter)
+	if parameter == "1" or parameter == 1 then
+        leftFootStep:Play()
+    elseif parameter == "2" or parameter == 2 then
+        RightFootStep:Play()
+    end
+end)
+local rngSound = {
+    "Click",
+    "ClickLow"
+}
+coroutine.wrap(function ()
+    while true do
+        task.wait(math.random(1, 5))
+        Ragdoll.Head[rngSound[math.random(1, #rngSound)]]:Play()
+    end
+ 
+end)()
+RunService.RenderStepped:Connect(function ()
+    local path = PathfindingService:CreatePath()
+    path:ComputeAsync(Ragdoll.HumanoidRootPart.Position, HumanoidRootPart.Position)
+    local waypoints = path:GetWaypoints()
+ 
+ 
+ 
+    for i, waypoint in pairs(waypoints) do
+ 
+        -- if waypoint.Action == Enum.PathWaypointAction.Jump then
+        --     RagHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        -- end
+ 
+        RagHumanoid:MoveTo(waypoint.Position)
+    end
+    -- RagRoot.CFrame = Ragdoll.PrimaryPart.CFrame * CFrame.lookAt(RagRoot.Position, HumanoidRootPart.Position)
+    RagHumanoid:MoveTo(HumanoidRootPart.Position)
+    if (RagRoot.Position - HumanoidRootPart.Position).Magnitude <= 18 then
+        RagRoot.Anchored = true
+        Walking.Value =  false
+    else
+        RagRoot.Anchored = false
+        Walking.Value =  true
+ 
+    end
+    if (RagRoot.Position - HumanoidRootPart.Position).Magnitude >= _G.RespawnRange then
+        Respawning.Value = true
+    else
+        Respawning.Value = false
+    end
+end)
